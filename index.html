@@ -6,7 +6,7 @@
 <title>Reports Prototype</title>
 <!--
   Pulse (RMG Utility) Reports dashboard prototype. Single self-contained file.
-  PULSE
+
   Tabs mirror the app's Reports page (frontend/src/pages/Reports.tsx): Utilization, Ready to Deploy,
   Project Headcount, Skill Gap, Open Positions, Deploy Cost (FY), Intern Investment, MBR, Salary Bands
   and Realized Invoice Value. Each report follows the app's
@@ -156,7 +156,7 @@ tr.grp td{background:#F4F4FA;font-weight:600;font-size:12.5px;color:var(--ink)}
 .sb-name{flex:1;font-weight:500;color:var(--ink)}
 .sb-top b{min-width:64px;text-align:right}
 .sb-track{display:block;height:6px;border-radius:3px;background:var(--track);overflow:hidden}
-.sb-track i{display:block;height:100%;border-radius:3px;background:var(--purple)}
+.sb-track i{display:block;height:100%;border-radius:3px;background:var(--grad)}
 .donut{display:grid;grid-template-columns:200px minmax(0,1fr);gap:20px;align-items:center;min-height:220px}
 .donut-chart{position:relative;height:200px}
 .donut-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none}
@@ -201,7 +201,7 @@ tr.grp td{background:#F4F4FA;font-weight:600;font-size:12.5px;color:var(--ink)}
 .skill.on{border-color:var(--purple);color:var(--purple-600)}
 .dots{display:inline-flex;gap:2px;vertical-align:middle}
 .dots i{width:6px;height:6px;border-radius:2px;background:var(--track)}
-.dots i.f{background:var(--purple)}
+.dots i.f{background:var(--grad)}
 
 .tbl-wrap{overflow-x:auto;border:1px solid var(--border-soft);border-radius:8px}
 table{border-collapse:collapse;width:100%;font-size:13px}
@@ -1227,8 +1227,25 @@ function Donut({ data, centerLabel, active, onSelect, unitLabel = 'People', pie 
 
 function PeriodBar({ children }) { return <p className="period-note"><Icon name="calendar" size={13} style={{ verticalAlign: -2, marginRight: 6 }} />{children}</p>; }
 
+/* The Pulse brand gradient, purple to raspberry, for every mark that would otherwise be plain brand purple.
+   Bars and dots take GRAD (along the bar: left to right, or bottom to top for columns); lines take GRAD_LINE. */
+const GRAD = 'url(#pulseGrad)', GRAD_V = 'url(#pulseGradV)', GRAD_LINE = 'url(#pulseGradLine)', GRAD_SPARK = 'url(#pulseGradSpark)';
+const swatch = (c) => (c && c.startsWith('url(') ? 'var(--grad)' : c);   // legends and tooltips are HTML, so they use the CSS gradient
+function GradientDefs() {
+  const stops = <><stop offset="0%" stopColor="#9C4BE6" /><stop offset="100%" stopColor="#CB5496" /></>;
+  return (
+    <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false"><defs>
+      <linearGradient id="pulseGrad" x1="0" y1="0" x2="1" y2="0">{stops}</linearGradient>
+      <linearGradient id="pulseGradV" x1="0" y1="1" x2="0" y2="0">{stops}</linearGradient>
+      {/* Lines use fixed pixel spans: a flat line has no height, which would hide a bounding-box gradient. */}
+      <linearGradient id="pulseGradLine" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="900" y2="0">{stops}</linearGradient>
+      <linearGradient id="pulseGradSpark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="110" y2="0">{stops}</linearGradient>
+    </defs></svg>
+  );
+}
+
 function Legend({ items }) {
-  return <div className="legend">{items.map((i) => <span key={i.label}><i className={'sw ' + (i.kind || '')} style={i.kind === 'hatch' ? null : { background: i.color }} />{i.label}</span>)}</div>;
+  return <div className="legend">{items.map((i) => <span key={i.label}><i className={'sw ' + (i.kind || '')} style={i.kind === 'hatch' ? null : { background: swatch(i.color) }} />{i.label}</span>)}</div>;
 }
 
 function Tip({ active, payload, label, rows, title, note }) {
@@ -1237,7 +1254,7 @@ function Tip({ active, payload, label, rows, title, note }) {
   return (
     <div className="tip">
       <div className="t">{title ? title(p, label) : label}</div>
-      {rows(p).map((r) => <div className="r" key={r[0]}><span>{r[2] && <i className="sw" style={{ background: r[2] }} />}{r[0]}</span><b className="num">{r[1]}</b></div>)}
+      {rows(p).map((r) => <div className="r" key={r[0]}><span>{r[2] && <i className="sw" style={{ background: swatch(r[2]) }} />}{r[0]}</span><b className="num">{r[1]}</b></div>)}
       {note && note(p) && <div className="n">{note(p)}</div>}
     </div>
   );
@@ -1294,7 +1311,7 @@ function Spark({ data, k, color }) {
     <div className="spark" aria-hidden="true">
       <ResponsiveContainer><LineChart data={data} margin={{ top: 4, right: 2, bottom: 4, left: 2 }}>
         <YAxis hide domain={['dataMin', 'dataMax']} />
-        <Line dataKey={k} stroke={color} strokeWidth={1.75} dot={false} isAnimationActive={false} connectNulls />
+        <Line dataKey={k} stroke={color === '#9C4BE6' ? GRAD_SPARK : color} strokeWidth={1.75} dot={false} isAnimationActive={false} connectNulls />
       </LineChart></ResponsiveContainer>
     </div>
   );
@@ -1861,8 +1878,8 @@ function ReadyView({ idx, f, people, groupBy }) {
               <XAxis dataKey="label" {...axis} minTickGap={18} padding={{ left: 14, right: 14 }} />
               <YAxis {...axis} allowDecimals={false} />
               {/* The tooltip snaps to the nearest point along the axis, so there is no need to land exactly on a dot. */}
-              <Tooltip cursor={{ stroke: '#C3C6D9', strokeDasharray: '3 3' }} content={<Tip title={(p) => (diffDays(f.from, f.to) > 190 ? monthName(p.key.slice(0, 7)) : `Week of ${fmtDate(p.start, true)}`) + (p.partial ? ', so far' : '')} rows={(p) => [['Ready to deploy', p.ready + (p.ready === 1 ? ' person' : ' people'), '#9C4BE6'], ['Over-allocated', p.over], ['Team utilization', fmtPct(p.allocated)]]} />} />
-              <Line dataKey="ready" type="monotone" stroke="#9C4BE6" strokeWidth={2} dot={{ r: 4, fill: '#9C4BE6', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7, fill: '#9C4BE6', stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
+              <Tooltip cursor={{ stroke: '#C3C6D9', strokeDasharray: '3 3' }} content={<Tip title={(p) => (diffDays(f.from, f.to) > 190 ? monthName(p.key.slice(0, 7)) : `Week of ${fmtDate(p.start, true)}`) + (p.partial ? ', so far' : '')} rows={(p) => [['Ready to deploy', p.ready + (p.ready === 1 ? ' person' : ' people'), GRAD], ['Over-allocated', p.over], ['Team utilization', fmtPct(p.allocated)]]} />} />
+              <Line dataKey="ready" type="monotone" stroke={GRAD_LINE} strokeWidth={2.5} dot={{ r: 4, fill: GRAD, stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7, fill: GRAD, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
                 <LabelList dataKey="ready" content={({ x, y, index, value }) => index === trend.length - 1 && value != null ? <text x={x} y={y - 12} textAnchor="middle" fontSize={11.5} fontWeight={600} fill="#0F1333">{value}</text> : null} />
               </Line>
             </LineChart>
@@ -1943,7 +1960,7 @@ function HeadcountView({ idx, f, people, groupBy }) {
             const t1 = addDays(fyTo, 1);
             const last = addDays(t1, -1);
             const dx = (d) => diffDays(t0, d);
-            const RUN = { billable: '#9C4BE6', ending: '#C47E00', internal: '#C3C6D9', done: '#E3E4EF' };
+            const RUN = { billable: GRAD, ending: '#C47E00', internal: '#C3C6D9', done: '#E3E4EF' };
             const runway = list.filter((p) => p.project.start <= last && (!p.project.end || p.project.end >= t0)).map((p) => {
               const st = maxS(p.project.start, t0), en = minS(p.project.end || last, last);
               const kind = p.status !== 'active' ? 'done' : !p.project.billable ? 'internal' : p.daysLeft != null && p.daysLeft <= 60 ? 'ending' : 'billable';
@@ -2168,7 +2185,7 @@ function PositionsView({ idx, f }) {
             const step = Math.max(...open.map((o) => Math.abs(o.days))) > 45 ? 30 : 15;
             const span = Math.ceil((Math.max(30, ...open.map((o) => Math.abs(o.days))) + 4) / step) * step;
             const ticks = Array.from({ length: (2 * span) / step + 1 }, (_, i) => -span + i * step);
-            const tone = (d) => (d < 0 ? '#D13C2C' : d <= 14 ? '#C47E00' : '#9C4BE6');
+            const tone = (d) => (d < 0 ? '#D13C2C' : d <= 14 ? '#C47E00' : GRAD);
             return (
               <div className="clickable" style={{ height: open.length * 30 + 40 }}><ResponsiveContainer>
                 <BarChart data={open} layout="vertical" margin={{ top: 14, right: 20, bottom: 0, left: 0 }} barCategoryGap={6}>
@@ -2266,9 +2283,9 @@ function DeployCostView({ idx, f, people, fyId, setFyId }) {
               {hGrid}
               <XAxis dataKey="label" {...axis} interval={0} />
               <YAxis {...axis} tickFormatter={(v) => fmtUSDShort(v)} width={52} />
-              <Tooltip cursor={barCursor} content={<Tip title={(d) => monthName(d.key)} rows={(d) => d.start > AS_OF ? [['Not reached yet', '']] : [['Deploy cost', fmtUSD(d.cost), '#9C4BE6'], ['People undeployed', d.headcount]]} />} />
+              <Tooltip cursor={barCursor} content={<Tip title={(d) => monthName(d.key)} rows={(d) => d.start > AS_OF ? [['Not reached yet', '']] : [['Deploy cost', fmtUSD(d.cost), GRAD], ['People undeployed', d.headcount]]} />} />
               <Bar dataKey="cost" radius={[4, 4, 0, 0]} maxBarSize={44} isAnimationActive={false} onClick={(d) => d.payload.cost && setMonthDrill(monthDrill === d.payload.key ? null : d.payload.key)}>
-                {months.map((m) => <Cell key={m.key} fill="#9C4BE6" fillOpacity={monthDrill && monthDrill !== m.key ? 0.35 : 1} />)}
+                {months.map((m) => <Cell key={m.key} fill={GRAD_V} fillOpacity={monthDrill && monthDrill !== m.key ? 0.35 : 1} />)}
                 <LabelList dataKey="cost" position="top" formatter={(v) => (v ? fmtUSDShort(v) : '')} style={{ fontSize: 11, fill: '#3D4466' }} />
               </Bar>
             </BarChart>
@@ -2332,8 +2349,8 @@ function InternView({ idx, f, fyId, setFyId }) {
               {hGrid}
               <XAxis dataKey="label" {...axis} interval={0} />
               <YAxis {...axis} tickFormatter={(v) => fmtUSDShort(v)} width={52} />
-              <Tooltip cursor={barCursor} content={<Tip title={(d) => monthName(d.key)} rows={(d) => d.start > AS_OF ? [['Not reached yet', '']] : [['Investment', fmtUSD(d.investment), '#9C4BE6'], ['Interns', d.active]]} />} />
-              <Bar dataKey="investment" fill="#9C4BE6" radius={[4, 4, 0, 0]} maxBarSize={44} isAnimationActive={false}>
+              <Tooltip cursor={barCursor} content={<Tip title={(d) => monthName(d.key)} rows={(d) => d.start > AS_OF ? [['Not reached yet', '']] : [['Investment', fmtUSD(d.investment), GRAD], ['Interns', d.active]]} />} />
+              <Bar dataKey="investment" fill={GRAD_V} radius={[4, 4, 0, 0]} maxBarSize={44} isAnimationActive={false}>
                 <LabelList dataKey="investment" position="top" formatter={(v) => (v ? fmtUSDShort(v) : '')} style={{ fontSize: 11, fill: '#3D4466' }} />
               </Bar>
             </BarChart>
@@ -2539,12 +2556,12 @@ function SalaryView({ idx, f, people }) {
                   <CartesianGrid stroke="#EEEEF8" horizontal={false} />
                   <XAxis type="number" domain={[0, max]} tickFormatter={(v) => '$' + v} {...axis} />
                   <YAxis type="category" dataKey="label" {...axis} width={190} />
-                  <Tooltip cursor={barCursor} content={<Tip title={(d) => d.label + ', ' + d.headcount + ' people'} rows={(d) => [['Avg cost', '$' + d.cost.toFixed(2) + '/hr'], ['Target bill rate', '$' + d.bill.toFixed(2) + '/hr', '#9C4BE6'], ['Margin', '$' + d.span.toFixed(2) + '/hr']]} />} />
+                  <Tooltip cursor={barCursor} content={<Tip title={(d) => d.label + ', ' + d.headcount + ' people'} rows={(d) => [['Avg cost', '$' + d.cost.toFixed(2) + '/hr'], ['Target bill rate', '$' + d.bill.toFixed(2) + '/hr', GRAD], ['Margin', '$' + d.span.toFixed(2) + '/hr']]} />} />
                   <Bar dataKey="cost" stackId="m" fill="transparent" isAnimationActive={false}>
                     <LabelList dataKey="cost" position="insideRight" formatter={(v) => '$' + v.toFixed(0)} style={{ fontSize: 11, fill: '#6B7399' }} />
                   </Bar>
                   <Bar dataKey="span" stackId="m" radius={4} maxBarSize={14} isAnimationActive={false} onClick={(d) => setBand(band === d.payload.bandKey ? null : d.payload.bandKey)}>
-                    {bars.map((b) => <Cell key={b.id} fill="#9C4BE6" fillOpacity={band && band !== b.bandKey ? 0.3 : 1} />)}
+                    {bars.map((b) => <Cell key={b.id} fill={GRAD} fillOpacity={band && band !== b.bandKey ? 0.3 : 1} />)}
                     <LabelList dataKey="bill" position="right" formatter={(v) => '$' + v.toFixed(0)} style={{ fontSize: 11.5, fill: '#0F1333', fontWeight: 600 }} />
                   </Bar>
                 </BarChart>
@@ -2651,7 +2668,7 @@ function InvoiceView({ idx, f, fyId, setFyId }) {
               const pend = rs.reduce((t, r) => t + r.pending, 0);
               return { client: c, received: rs.reduce((t, r) => t + r.realised, 0), overdue, notDue: Math.max(0, pend - overdue) };
             }).sort((a, b) => b.overdue - a.overdue || (b.received + b.notDue) - (a.received + a.notDue));
-            const C = { received: ['Received', '#9C4BE6'], notDue: ['Not yet due', '#C3C6D9'], overdue: ['Past due', '#D13C2C'] };
+            const C = { received: ['Received', GRAD], notDue: ['Not yet due', '#C3C6D9'], overdue: ['Past due', '#D13C2C'] };
             return (<>
               <Legend items={Object.values(C).map(([label, color]) => ({ label, color }))} />
               <div className="clickable" style={{ height: byClient.length * 40 + 34 }}><ResponsiveContainer>
@@ -2797,6 +2814,7 @@ function App() {
 
   return (
     <>
+      <GradientDefs />
       <header className="topbar">
         <span className="logo" aria-hidden="true">P</span><b>Pulse</b><span className="crumb">Reports</span>
         <span className="demo-flag" title="All figures are synthetic and generated in this file."><i />Demo data</span>
