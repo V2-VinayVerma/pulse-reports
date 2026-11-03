@@ -1825,7 +1825,8 @@ function ReadyView({ idx, f, people, groupBy }) {
 
   const positions = useMemo(() => scopedPositions(idx, { ...f, query: '' }), [idx, f]);
   const ready = useMemo(() => readyToDeploy(idx, f, people, positions, threshold), [idx, f, people, positions, threshold]);
-  const trend = useMemo(() => utilizationTrend(idx, f, people, diffDays(f.from, f.to) > 190 ? 'month' : 'week', threshold), [idx, f, people, threshold]);
+  // Same population as the Ready to deploy card: Delivery and Supervisory staff.
+  const trend = useMemo(() => utilizationTrend(idx, f, people.filter((e) => e.category === 'delivery' || e.category === 'supervisory'), diffDays(f.from, f.to) > 190 ? 'month' : 'week', threshold), [idx, f, people, threshold]);
   const rolls = useMemo(() => upcomingRollOffs(idx, people, threshold), [idx, people, threshold]);
   const at = lastWorkday(idx, minS(f.to, AS_OF));
   const free = ready.filter((r) => r.currentPct === 0);
@@ -1852,16 +1853,19 @@ function ReadyView({ idx, f, people, groupBy }) {
       ]} />
 
       <div className="row main">
-        <Panel title="Ready-to-deploy pool over time" note={`People booked at or below ${threshold}% on average each week.`}
+        <Panel title="Ready-to-deploy pool over time" note={`People booked at or below ${threshold}% each ${diffDays(f.from, f.to) > 190 ? 'month' : 'week'}. Hover anywhere near a point for its details.`}
           tools={<Seg small label="Threshold" options={[[25, '≤ 25%'], [50, '≤ 50%'], [75, '≤ 75%']]} value={threshold} onChange={setThreshold} />}>
           <div className="chart"><ResponsiveContainer>
-            <AreaChart data={trend} margin={{ top: 10, right: 24, bottom: 0, left: -20 }}>
+            <LineChart data={trend} margin={{ top: 20, right: 24, bottom: 0, left: -20 }}>
               {hGrid}
-              <XAxis dataKey="label" {...axis} minTickGap={18} />
+              <XAxis dataKey="label" {...axis} minTickGap={18} padding={{ left: 14, right: 14 }} />
               <YAxis {...axis} allowDecimals={false} />
-              <Tooltip cursor={{ stroke: '#C3C6D9' }} content={<Tip title={(p) => `Week of ${fmtDate(p.key, true)}`} rows={(p) => [['Ready to deploy', p.ready, '#9C4BE6'], ['Team utilization', fmtPct(p.allocated)]]} />} />
-              <Area dataKey="ready" type="stepAfter" stroke="#9C4BE6" strokeWidth={2} fill="#9C4BE6" fillOpacity={0.14} activeDot={{ r: 4.5, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false} />
-            </AreaChart>
+              {/* The tooltip snaps to the nearest point along the axis, so there is no need to land exactly on a dot. */}
+              <Tooltip cursor={{ stroke: '#C3C6D9', strokeDasharray: '3 3' }} content={<Tip title={(p) => (diffDays(f.from, f.to) > 190 ? monthName(p.key.slice(0, 7)) : `Week of ${fmtDate(p.start, true)}`) + (p.partial ? ', so far' : '')} rows={(p) => [['Ready to deploy', p.ready + (p.ready === 1 ? ' person' : ' people'), '#9C4BE6'], ['Over-allocated', p.over], ['Team utilization', fmtPct(p.allocated)]]} />} />
+              <Line dataKey="ready" type="monotone" stroke="#9C4BE6" strokeWidth={2} dot={{ r: 4, fill: '#9C4BE6', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7, fill: '#9C4BE6', stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
+                <LabelList dataKey="ready" content={({ x, y, index, value }) => index === trend.length - 1 && value != null ? <text x={x} y={y - 12} textAnchor="middle" fontSize={11.5} fontWeight={600} fill="#0F1333">{value}</text> : null} />
+              </Line>
+            </LineChart>
           </ResponsiveContainer></div>
         </Panel>
         <Panel title="Needs attention">
